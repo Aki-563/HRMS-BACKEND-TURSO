@@ -22,6 +22,7 @@ const client = createClient({
 // This makes Turso behave exactly like your old 'sqlite' library.
 // 3. The "Smart Wrapper" (IMPROVED)
 // Converts undefined -> null to prevent Turso crashes
+// 3. The "Smart Wrapper" (Fixed for BigInt Crash)
 const db = {
   get: async (sql, args = []) => {
     const safeArgs = args.map(arg => (arg === undefined ? null : arg));
@@ -37,7 +38,8 @@ const db = {
     const safeArgs = args.map(arg => (arg === undefined ? null : arg));
     const rs = await client.execute({ sql, args: safeArgs });
     return {
-      lastID: rs.lastInsertRowid,
+      // 🚨 FIX: Convert BigInt to Number
+      lastID: Number(rs.lastInsertRowid), 
       changes: rs.rowsAffected
     };
   }
