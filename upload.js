@@ -1,13 +1,10 @@
 const { createClient } = require("@libsql/client");
 const fs = require("fs");
-
-// 1. PASTE YOUR CREDENTIALS HERE
-const url = "libsql://hrmsdb-akilesh-563.aws-ap-south-1.turso.io"; 
-const authToken = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjQwNjg0MzYsImlkIjoiZTk3NTc3YjYtNjI3MC00YzRlLWIwMmEtOTM4Y2E0YzNkZmY5IiwicmlkIjoiOTcwNGJkMmItYWEzYS00NTAyLWE5OTMtYmNhY2RkNjE2YWM1In0.SOYe5GSaZcCWYyIUwFeBK8Jk7JbTw2ctOVN6CPlJKVAE_YvlS7_Rr9tDkLP6p-2ijtWymkVEyISg9qKPEvsKAw";
+require('dotenv').config(); 
 
 const client = createClient({
-  url: url,
-  authToken: authToken,
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
 async function uploadData() {
@@ -15,21 +12,33 @@ async function uploadData() {
     console.log("📂 Reading dump.sql...");
     const rawSql = fs.readFileSync("dump.sql", "utf8");
 
-    // 🛠️ THE FIX: Disable Foreign Key checks before running the SQL
-    // This lets us insert data in any order without errors.
-    const finalSql = `
+    // 1. CLEANUP: Drop existing tables so we don't get "Duplicate ID" errors
+    // We drop child tables first (like employee_teams) to be safe.
+    const cleanupSql = `
       PRAGMA foreign_keys = OFF;
+      DROP TABLE IF EXISTS employee_teams;
+      DROP TABLE IF EXISTS logs;
+      DROP TABLE IF EXISTS employees;
+      DROP TABLE IF EXISTS teams;
+      DROP TABLE IF EXISTS users;
+      DROP TABLE IF EXISTS organisations;
+    `;
+
+    // 2. RESTORE: The actual upload logic
+    const finalSql = `
+      ${cleanupSql}
       
       ${rawSql}
       
       PRAGMA foreign_keys = ON;
     `;
 
-    console.log("🚀 Uploading to Turso... (Ignoring Foreign Key rules temporarily)");
+    console.log("🧹 Cleaning up old data...");
+    console.log("🚀 Uploading fresh data to Turso...");
     
     await client.executeMultiple(finalSql);
 
-    console.log("✅ Success! Your database is live.");
+    console.log("✅ Success! Database restored successfully.");
   } catch (err) {
     console.error("❌ Error uploading:", err);
   }
