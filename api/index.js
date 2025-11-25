@@ -20,20 +20,25 @@ const client = createClient({
 
 // 3. The "Smart Wrapper"
 // This makes Turso behave exactly like your old 'sqlite' library.
+// 3. The "Smart Wrapper" (IMPROVED)
+// Converts undefined -> null to prevent Turso crashes
 const db = {
   get: async (sql, args = []) => {
-    const rs = await client.execute({ sql, args });
-    return rs.rows[0]; // Returns the first row or undefined
+    const safeArgs = args.map(arg => (arg === undefined ? null : arg));
+    const rs = await client.execute({ sql, args: safeArgs });
+    return rs.rows[0];
   },
   all: async (sql, args = []) => {
-    const rs = await client.execute({ sql, args });
-    return rs.rows; // Returns all rows
+    const safeArgs = args.map(arg => (arg === undefined ? null : arg));
+    const rs = await client.execute({ sql, args: safeArgs });
+    return rs.rows;
   },
   run: async (sql, args = []) => {
-    const rs = await client.execute({ sql, args });
+    const safeArgs = args.map(arg => (arg === undefined ? null : arg));
+    const rs = await client.execute({ sql, args: safeArgs });
     return {
-      lastID: rs.lastInsertRowid, // Matches sqlite's "lastID"
-      changes: rs.rowsAffected    // Matches sqlite's "changes"
+      lastID: rs.lastInsertRowid,
+      changes: rs.rowsAffected
     };
   }
 };
